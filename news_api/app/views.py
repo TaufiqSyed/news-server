@@ -11,7 +11,9 @@ from datetime import datetime
 class NewsArticleView(APIView):
     def __init__(self):
         super()
-        self.optional_params = ['q', 'from', 'to', 'sortBy', 'sources', 'language']
+        self.countries = ["ae","ar","at","au","be","bg","br","ca","ch","cn","co","cu","cz","de","eg","fr","gb","gr","hk","hu","id","ie","il","in","it","jp","kr","lt","lv","ma","mx","my","ng","nl","no","nz","ph","pl","pt","ro","rs","ru","sa","se","sg","si","sk","th","tr","tw","ua","us","ve","za"]
+        self.categories = ['business','entertainment','general','health','science','sports','technology']
+        self.optional_params = ['q', 'country', 'category', 'sources']
         self.mandatory_params = ['pageSize', 'page']
 
     def get(self, request, *args, **kwargs):  
@@ -20,6 +22,7 @@ class NewsArticleView(APIView):
         if err_resp is not None: return err_resp
 
         news_articles = NewsArticleRepository.getNewsArticles(params)
+        print(params)
         if news_articles is not None:
             return Response({'status': 'success', 'articles': news_articles}, status=200)  
         else:
@@ -44,7 +47,24 @@ class NewsArticleView(APIView):
                     },
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-            
+        too_vague = not any(x in params for x in self.optional_params)
+        if too_vague:
+            return Response(
+                    {
+                        'status': 'failure',
+                        'error': f'Search is too vague - must have at least one condition'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        incompatible_filters = 'sources' in params and ('category' in params or 'country' in params)
+        if incompatible_filters:
+            return Response(
+                    {
+                        'status': 'failure',
+                        'error': f'Filtering by sources cannot mix with country / category filters'
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
         for param in params:
             validator = getattr(self, f"validate_{param}")
             if not validator(params[param]):
@@ -54,23 +74,12 @@ class NewsArticleView(APIView):
     def validate_q(self, s):
         return len(s) <= 500
     
-    def validate_from(self, s):
-        try:
-            datetime.fromisoformat(s)
-        except:
-            return False
-        return True
-    
-    def validate_to(self, s):
-        try:
-            datetime.fromisoformat(s)
-        except:
-            return False
-        return True
+    def validate_country(self, s):
+        return s in self.countries
 
-    def validate_sortBy(self, s):
-        return s in ['relevancy', 'popularity', 'publishedAt']
-    
+    def validate_category(self, s):
+        return s in self.categories
+
     def validate_sources(self, s):
         r = requests.get('https://newsapi.org/v2/top-headlines/sources?apiKey=a022f5e533e245f2ae741a6ff9c27cf9')
         if r.status_code == 200:
@@ -81,11 +90,18 @@ class NewsArticleView(APIView):
             return True
         return False
 
-    
-    # def post(self, request):  
-    #     serializer = NewsArticleSerializer(data=request.data)  
-    #     if serializer.is_valid():  
-    #         serializer.save()  
-    #         return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)  
-    #     else:  
-    #         return Response({"status": "error", "data": serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
+    def validate_pageSize(self, s):
+        try:
+            val = int(s)
+            if val < 0: return False
+            return True
+        except ValueError:
+            return False
+        
+    def validate_page(self, s):
+        try:
+            val = int(s)
+            if val < 0: return False
+            return True
+        except ValueError:
+            return False
