@@ -1,4 +1,5 @@
 # Every day at 1am, fetch data from the News API
+
 from datetime import datetime
 from news_api.app.models import NewsArticle
 from news_api.app.repositories import NewsArticleRepository

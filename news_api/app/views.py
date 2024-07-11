@@ -1,3 +1,4 @@
+from django.utils.dateparse import parse_datetime
 from django.shortcuts import render
 from news_api.app.repositories import NewsArticleRepository
 from rest_framework.views import APIView  
@@ -23,11 +24,34 @@ class NewsArticleView(APIView):
 
         news_articles = NewsArticleRepository.getNewsArticles(params)
         print(params)
-        if news_articles is not None:
-            return Response({'status': 'success', 'articles': news_articles}, status=200)  
-        else:
+
+        if news_articles is  None:        
             return Response({'status': 'failure'}, status=500)  
-  
+        
+        articles = []
+        null_coalesce = lambda x, default: x if x != None else default 
+        for article_data in news_articles:
+            article_data['publishedAt'] = null_coalesce(article_data['publishedAt'], '')
+            article_data['author'] = null_coalesce(article_data['author'], '')
+            article_data['title'] = null_coalesce(article_data['title'], '')
+            article_data['description'] = null_coalesce(article_data['description'], '')
+            article_data['urlToImage'] = null_coalesce(article_data['urlToImage'], '')
+            article_data['content'] = null_coalesce(article_data['content'], '')
+            serializer = NewsArticleSerializer(data=article_data)
+            if serializer.is_valid():
+                articles.append(NewsArticle(**serializer.validated_data))
+            else:
+                # Log the validation errors
+                print(f"Validation error: {serializer.errors}")
+
+        # Bulk create articles
+        try:
+            NewsArticle.objects.bulk_create(articles, ignore_conflicts=False)
+        except Exception as e:
+            # Log the error
+            print(f"Error creating articles: {e}")
+        return Response({'status': 'success', 'articles': news_articles}, status=200)  
+    
     def validate_param_fields(self, params):
         for param in self.mandatory_params:
             if param not in params:
