@@ -1,11 +1,13 @@
 from django.utils.dateparse import parse_datetime
 from django.shortcuts import render
 from news_api.app.repositories import NewsArticleRepository
+from news_api.app.utils import null_coalesce
 from rest_framework.views import APIView  
 from rest_framework.response import Response  
 from rest_framework import status  
 from .models import NewsArticle  
-from .serializers import NewsArticleSerializer  
+from .serializers import NewsArticleSerializer
+from django.http import JsonResponse
 import requests
 import json 
 from datetime import datetime
@@ -22,36 +24,15 @@ class NewsArticleView(APIView):
         err_resp = self.validate_param_fields(params)
         if err_resp is not None: return err_resp
 
-        news_articles = NewsArticleRepository.getNewsArticles(params)
-        print(params)
-
-        if news_articles is  None:        
-            return Response({'status': 'failure'}, status=500)  
-        
-        articles = []
-        null_coalesce = lambda x, default: x if x != None else default 
-        for article_data in news_articles:
-            article_data['publishedAt'] = null_coalesce(article_data['publishedAt'], '')
-            article_data['author'] = null_coalesce(article_data['author'], '')
-            article_data['title'] = null_coalesce(article_data['title'], '')
-            article_data['description'] = null_coalesce(article_data['description'], '')
-            article_data['urlToImage'] = null_coalesce(article_data['urlToImage'], '')
-            article_data['content'] = null_coalesce(article_data['content'], '')
-            serializer = NewsArticleSerializer(data=article_data)
-            if serializer.is_valid():
-                articles.append(NewsArticle(**serializer.validated_data))
-            else:
-                # Log the validation errors
-                print(f"Validation error: {serializer.errors}")
-
-        # Bulk create articles
+        repo = NewsArticleRepository(params)
         try:
-            NewsArticle.objects.bulk_create(articles, ignore_conflicts=False)
+            news_articles = NewsArticleRepository(params).getNewsArticles()
+            articles = news_articles
+            return JsonResponse({'status': 'success', 'articles': articles}, status=200)  
         except Exception as e:
-            # Log the error
-            print(f"Error creating articles: {e}")
-        return Response({'status': 'success', 'articles': news_articles}, status=200)  
-    
+            print(e)
+            return Response({'status': 'failure'}, status=500)  
+
     def validate_param_fields(self, params):
         for param in self.mandatory_params:
             if param not in params:
