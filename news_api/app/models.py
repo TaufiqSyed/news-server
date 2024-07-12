@@ -1,6 +1,8 @@
 from django.db import models
 from news_api.app.utils import null_coalesce
+import architect
 
+@architect.install('partition', type='range', subtype='date', constraint='month', column='publishedAt')
 class NewsArticle(models.Model):
     url = models.CharField(max_length=10000, null=False, blank=False, unique=True, primary_key=True)
     author = models.CharField(max_length=1000, blank=True, null=False, primary_key=False)
@@ -27,3 +29,5 @@ class NewsArticle(models.Model):
             content=self.content,
             publishedAt=null_coalesce(self.publishedAt, self.publishedAt.isoformat()),
         )
+
+    
