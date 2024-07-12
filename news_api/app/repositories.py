@@ -19,7 +19,7 @@ class NewsArticleRepository:
         self.params['apiKey'] = os.environ['NEWS_API_KEY']
         self.page = int(self.params['page'])
         self.pageSize = int(self.params['pageSize'])
-        self.cache_key = ';'.join(map(lambda x: null_coalesce(self.params.get(x, ''),''),['q', 'country', 'category']))
+        self.cache_key = ';'.join(map(lambda x: null_coalesce(self.params.get(x, ''),''),['q', 'country', 'category', 'page', 'pageSize']))
 
     def getNewsArticles(self):
         result = self.getNewsArticlesFromCache()
@@ -36,7 +36,9 @@ class NewsArticleRepository:
         api_articles = self.getNewsArticlesFromApi(num_requested, article_set)
         print('Number of articles from API =', len(api_articles))
         
-        return db_articles + api_articles
+        result = db_articles + api_articles
+        cache.set(key=self.cache_key, value=result, timeout=60*15)
+        return result
 
     
     def getNewsArticlesFromCache(self):
@@ -46,10 +48,7 @@ class NewsArticleRepository:
 
     def getNewsArticlesFromDb(self):
         offset = (self.page-1)*self.pageSize
-        queryset = NewsArticle.objects.all()
-        
-        
-   
+        queryset = NewsArticle.objects.all()   
 
         if 'country' in self.params and self.params['country'] != '' and self.params['country'] is not None:
             queryset = queryset.filter(
@@ -74,8 +73,7 @@ class NewsArticleRepository:
         
         queryset = queryset.order_by('-publishedAt')[offset:offset+self.pageSize]
         result = list(queryset)
-        cache.set(key=self.cache_key, value=result, timeout=60*15)
-        return list(queryset)
+        return result
 
 
     def getNewsArticlesFromApi(self, num_requested=None, article_set=None):

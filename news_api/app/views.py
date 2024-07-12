@@ -26,7 +26,7 @@ class NewsArticleView(APIView):
 
         repo = NewsArticleRepository(params)
         try:
-            news_articles = NewsArticleRepository(params).getNewsArticles()
+            news_articles = repo.getNewsArticles()
             articles = news_articles
             return JsonResponse({'status': 'success', 'articles': list(map(lambda x: x.as_json(), articles))}, status=200)  
         except Exception as e:

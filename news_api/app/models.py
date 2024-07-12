@@ -2,10 +2,10 @@ from django.db import models
 from news_api.app.utils import null_coalesce
 
 class NewsArticle(models.Model):
-    author = models.CharField(max_length=1000, blank=True, null=False)
+    url = models.CharField(max_length=10000, null=False, blank=False, unique=True, primary_key=True)
+    author = models.CharField(max_length=1000, blank=True, null=False, primary_key=False)
     title = models.CharField(max_length=1000, blank=True, null=False)
     description = models.CharField(max_length=1000, blank=True, null=False)
-    url = models.CharField(max_length=10000, primary_key=True, null=False)
     urlToImage = models.CharField(max_length=1000, blank=True, null=False)
     content = models.CharField(max_length=1000, blank=True, null=False)
     publishedAt = models.DateTimeField(blank=True, null=True)
