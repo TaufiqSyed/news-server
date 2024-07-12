@@ -1,5 +1,9 @@
 # Dubai Tribune: News Aggregator Backend
 
+Front-end Repository: https://github.com/TaufiqSyed/news-client
+
+Documentation: https://docs.google.com/document/d/1Kz2M0vP-QMnQuUk063sbGe58G6CJ_Ov2Q2PnprDTy4c/edit?usp=sharing
+
 Built with newsapi.org
 
 ## Set-up instructions
