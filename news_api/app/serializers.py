@@ -2,11 +2,11 @@ from rest_framework import serializers
 from .models import NewsArticle
   
 class NewsArticleSerializer(serializers.ModelSerializer):  
-    url = serializers.CharField(max_length=1000)
-    author = serializers.CharField(max_length=200, allow_blank=True)
-    title = serializers.CharField(max_length=200, allow_blank=True)
+    url = serializers.CharField(max_length=10000)
+    author = serializers.CharField(max_length=1000, allow_blank=True)
+    title = serializers.CharField(max_length=1000, allow_blank=True)
     description = serializers.CharField(max_length=1000, allow_blank=True)
-    urlToImage = serializers.CharField(max_length=400, allow_blank=True)
+    urlToImage = serializers.CharField(max_length=1000, allow_blank=True)
     content = serializers.CharField(max_length=1000, allow_blank=True)
     publishedAt = serializers.DateTimeField(required=False, allow_null=True)
     

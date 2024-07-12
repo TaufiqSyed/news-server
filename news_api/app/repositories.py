@@ -1,6 +1,8 @@
 from datetime import datetime
 import json
 from sqlite3 import IntegrityError
+from django.db.models import Q
+
 import requests
 import os
 
@@ -17,12 +19,17 @@ class NewsArticleRepository:
         self.pageSize = int(self.params['pageSize'])
 
     def getNewsArticles(self):
+        # print(self.params)
         db_articles = self.getNewsArticlesFromDb()
+        # print('DB Articles', db_articles)
+        print('Number of articles from database =', len(db_articles))
         num_retrieved = len(db_articles)
         num_requested = self.pageSize - num_retrieved
         if num_requested == 0: return db_articles
-        article_set = {article['url'] for article in db_articles}
+        article_set = {article.url for article in db_articles}
         api_articles = self.getNewsArticlesFromApi(num_requested, article_set)
+        print('Number of articles from API =', len(api_articles))
+        # print('API Articles', api_articles)
         
         return db_articles + api_articles
 
@@ -30,10 +37,29 @@ class NewsArticleRepository:
     def getNewsArticlesFromDb(self):
         offset = (self.page-1)*self.pageSize
         queryset = NewsArticle.objects.all()
-        if 'q' in self.params and self.params['q'] != '' and self.params['q'] is not None:
-            queryset = queryset.filter(title__contains=self.params['q'])
+
+        if 'country' in self.params and self.params['country'] != '' and self.params['country'] is not None:
+            queryset = queryset.filter(
+                Q(title__contains=self.params['country']) | 
+                Q(content__contains=self.params['country']) |
+                Q(description__contains=self.params['country'])
+            )
         
-        queryset = queryset.order_by('-publishedAt')[offset:offset+self.pageSize].values()
+        if 'category' in self.params and self.params['category'] != '' and self.params['category'] is not None:
+            queryset = queryset.filter(
+                Q(title__contains=self.params['category']) | 
+                Q(content__contains=self.params['category']) |
+                Q(description__contains=self.params['category'])
+            )
+
+        if 'q' in self.params and self.params['q'] != '' and self.params['q'] is not None:
+            queryset = queryset.filter(
+                Q(title__contains=self.params['q']) | 
+                Q(content__contains=self.params['q']) |
+                Q(description__contains=self.params['q'])
+            )
+        
+        queryset = queryset.order_by('-publishedAt')[offset:offset+self.pageSize]
         return list(queryset)
 
 
@@ -51,6 +77,7 @@ class NewsArticleRepository:
                 r = requests.get('https://newsapi.org/v2/top-headlines', params=self.params)
                 if r.status_code == 200:
                     fetched = r.json()['articles']
+                    print(fetched)
                     if len(fetched) == 0:
                         break
                     fetched = list(filter(lambda x: x['url'] not in article_set, fetched))
@@ -68,6 +95,7 @@ class NewsArticleRepository:
         self.params['page'] = str(self.page)
         self.params['pageSize'] = str(self.pageSize)
         objects = self.cleanApiData(result)
+        # print(objects)
         self.add_articles_to_db(objects)
         return objects
         
@@ -87,7 +115,8 @@ class NewsArticleRepository:
             else:
                 print(serializer.errors)
                 raise ValueError
-        return list(map(lambda x: x.as_json(), articles))
+        return articles
+        # return list(map(lambda x: x.as_json(), articles))
 
     def add_articles_to_db(self, articles):
         for obj in articles:
