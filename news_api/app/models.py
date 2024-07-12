@@ -1,15 +1,7 @@
 from django.db import models
-
 from news_api.app.utils import null_coalesce
 
 class NewsArticle(models.Model):
-    # author = models.CharField(max_length=200, blank=True, null=True)
-    # title = models.CharField(max_length=200, blank=True, null=True)
-    # description = models.CharField(max_length=200, blank=True, null=True)
-    # url = models.CharField(max_length=400, primary_key=True)
-    # urlToImage = models.CharField(max_length=400, blank=True, null=True)
-    # content = models.CharField(max_length=400, blank=True, null=True)
-    # publishedAt = models.DateTimeField(null=True)
     author = models.CharField(max_length=1000, blank=True, null=False)
     title = models.CharField(max_length=1000, blank=True, null=False)
     description = models.CharField(max_length=1000, blank=True, null=False)

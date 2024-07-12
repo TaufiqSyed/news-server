@@ -2,9 +2,11 @@ from datetime import datetime
 import json
 from sqlite3 import IntegrityError
 from django.db.models import Q
+from django.core.cache import cache
 
 import requests
 import os
+
 
 from django.core import serializers
 from news_api.app.models import NewsArticle
@@ -17,11 +19,15 @@ class NewsArticleRepository:
         self.params['apiKey'] = os.environ['NEWS_API_KEY']
         self.page = int(self.params['page'])
         self.pageSize = int(self.params['pageSize'])
+        self.cache_key = ';'.join(map(lambda x: null_coalesce(self.params.get(x, ''),''),['q', 'country', 'category']))
 
     def getNewsArticles(self):
-        # print(self.params)
+        result = self.getNewsArticlesFromCache()
+        if result is not None: 
+            print('[Skipping retrieval - using cached news articles]')
+            return result
+        
         db_articles = self.getNewsArticlesFromDb()
-        # print('DB Articles', db_articles)
         print('Number of articles from database =', len(db_articles))
         num_retrieved = len(db_articles)
         num_requested = self.pageSize - num_retrieved
@@ -29,14 +35,21 @@ class NewsArticleRepository:
         article_set = {article.url for article in db_articles}
         api_articles = self.getNewsArticlesFromApi(num_requested, article_set)
         print('Number of articles from API =', len(api_articles))
-        # print('API Articles', api_articles)
         
         return db_articles + api_articles
 
+    
+    def getNewsArticlesFromCache(self):
+        result = cache.get(key=self.cache_key)
+        return result
         
+
     def getNewsArticlesFromDb(self):
         offset = (self.page-1)*self.pageSize
         queryset = NewsArticle.objects.all()
+        
+        
+   
 
         if 'country' in self.params and self.params['country'] != '' and self.params['country'] is not None:
             queryset = queryset.filter(
@@ -60,6 +73,8 @@ class NewsArticleRepository:
             )
         
         queryset = queryset.order_by('-publishedAt')[offset:offset+self.pageSize]
+        result = list(queryset)
+        cache.set(key=self.cache_key, value=result, timeout=60*15)
         return list(queryset)
 
 
@@ -77,7 +92,6 @@ class NewsArticleRepository:
                 r = requests.get('https://newsapi.org/v2/top-headlines', params=self.params)
                 if r.status_code == 200:
                     fetched = r.json()['articles']
-                    print(fetched)
                     if len(fetched) == 0:
                         break
                     fetched = list(filter(lambda x: x['url'] not in article_set, fetched))
